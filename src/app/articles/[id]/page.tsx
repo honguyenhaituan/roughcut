@@ -27,6 +27,8 @@ export default async function ArticlePage({ params }: Props) {
         content: a.content as ArticleContent,
         sourceSegments: a.sourceSegments as Segment[],
         media: a.media as Media[],
+        published: a.published,
+        publicId: a.publicId,
       }}
     />
   );

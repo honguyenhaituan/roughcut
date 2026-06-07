@@ -103,7 +103,15 @@ export default async function LibraryPage() {
                   {a.title || 'Untitled'}
                 </p>
                 <div className="flex items-center justify-between">
-                  <StatusBadge status={a.status} />
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={a.status} />
+                    {a.published && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                        <span className="size-1.5 rounded-full bg-green-500" />
+                        Public
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-zinc-400">
                     {new Date(a.updatedAt).toLocaleDateString()}
                   </span>

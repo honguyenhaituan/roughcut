@@ -9,11 +9,22 @@ export const articleRepository = {
   findByIdForUser: (id: string, userId: string) =>
     prisma.article.findFirst({ where: { id, userId } }),
 
+  // Public read — the ONLY lookup not scoped by userId, so it MUST require
+  // published: true inline.
+  findByPublicId: (publicId: string) =>
+    prisma.article.findFirst({ where: { publicId, published: true } }),
+
   listForUser: (userId: string) =>
     prisma.article.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
-      select: { id: true, title: true, status: true, updatedAt: true },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        updatedAt: true,
+        published: true,
+      },
     }),
 
   update: (id: string, userId: string, data: Prisma.ArticleUpdateInput) =>

@@ -103,6 +103,36 @@ export const articleService = {
 
   remove: (id: string, userId: string) => articleRepository.remove(id, userId),
 
+  async publish(id: string, userId: string) {
+    const existing = await articleRepository.findByIdForUser(id, userId);
+    if (!existing) throw new Error('NOT_FOUND');
+    const publicId = existing.publicId ?? crypto.randomUUID();
+    await articleRepository.update(id, userId, {
+      published: true,
+      publishedAt: new Date(),
+      publicId,
+    });
+    return { publicId };
+  },
+
+  async unpublish(id: string, userId: string) {
+    const existing = await articleRepository.findByIdForUser(id, userId);
+    if (!existing) throw new Error('NOT_FOUND');
+    await articleRepository.update(id, userId, { published: false });
+  },
+
+  // Returns a projected, safe shape — never userId or sourceSegments (raw notes),
+  // which would otherwise ship to the public page's RSC payload.
+  async getPublic(publicId: string) {
+    const a = await articleRepository.findByPublicId(publicId);
+    if (!a) return null;
+    return {
+      title: a.title,
+      content: a.content as ArticleContent,
+      media: a.media as Media[],
+    };
+  },
+
   async update(
     id: string,
     userId: string,
