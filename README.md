@@ -1,76 +1,77 @@
-# vibe-nextjs
+# Article Studio
 
-A personal Next.js starter template for rapid web vibe coding. Clone this repo whenever starting a new web project to skip the boilerplate setup.
+Turn rough "word vomit" travel notes (`.docx` / `.txt` / `.md`) into a structured, **source-attributed** magazine article you can review, edit, and export.
+
+Built for the Seek Sophie pre-interview task.
+
+## The core idea
+
+> "Which note did each claim come from?" and "what does the system do when the LLM hallucinates?" are the **same problem**.
+
+The answer is **grounded, two-step generation with per-claim source attribution**:
+
+1. **Parse & segment** — every uploaded file is split into segments `S1…Sn`, each tagged with its source filename. Embedded `.docx` images are extracted to Vercel Blob. This pool of segments is the _only_ source of truth the model may use.
+2. **Plan** (1 LLM call) — produces everything structured _except_ prose: article type, title, an ordered section skeleton (each section assigned the segment ids it should draw from), key facts, best-for / not-for, ethics & safety, tips, FAQ, plus **`openQuestions`** (what a published guide needs that the notes don't contain) and a non-travel guard.
+3. **Human checkpoint** — the _Skeleton Review_ screen lets the author edit headings/intents, reorder, and reassign segments before any prose is written.
+4. **Draft** (N parallel calls, concurrency-capped) — each section is drafted from _only its assigned segments_. Every claim carries a `provenance` (`sourced` / `ai_added`) and the source ids it used.
+
+Two independent lines defend against hallucination:
+
+- The model is forced into a **Zod-validated structured output** (no free-text-then-parse).
+- The server **re-validates every source id** against the real segment pool and strips ghosts — at plan time, at draft time, and on every autosave PATCH.
+
+In the editor, each claim is tinted by provenance — 🟢 `sourced`, 🟡 `ai_added` (flagged "verify"), 🔵 `human` (set the moment you edit it). A summary bar counts grounded / unverified / open-questions and **soft-gates** saving while AI-added claims remain unverified. Clicking any claim shows the exact source segment + filename it came from.
 
 ## Stack
 
-- **[Next.js](https://nextjs.org)** 16 (App Router) + **React** 19
-- **TypeScript**
-- **Tailwind CSS** v4
-- **PWA** via `@ducanh2912/next-pwa`
-- **pnpm** workspaces
+- **Next.js 16** (App Router) · React 19 · TypeScript · Tailwind v4
+- **Prisma 7** + **Supabase Postgres** — article stored as a JSON-aggregate
+- **Vercel AI SDK** (`generateObject` + Zod) over an OpenAI-compatible **LiteLLM** gateway
+- **Vercel Blob** for extracted/uploaded images (auth via Vercel OIDC)
+- **Self-built auth** — email/password, bcrypt + a `jose` JWT session cookie. Authorization lives in the service layer (every query is scoped by `userId`, every mutation re-checks ownership) — deliberately **not** Postgres RLS, so ownership is one testable source of truth in code.
 
-## Code Quality
+## Architecture
 
-| Tool        | Purpose                                                             |
-| ----------- | ------------------------------------------------------------------- |
-| ESLint      | Linting (Next.js + TypeScript rules)                                |
-| Prettier    | Formatting (with Tailwind class sorting)                            |
-| Husky       | Git hooks                                                           |
-| lint-staged | Run linters only on staged files                                    |
-| commitlint  | Enforce [Conventional Commits](https://www.conventionalcommits.org) |
+`Route Handler / Server Action → Service → Repository`, layered under `src/server/`. The article is one aggregate document persisted as JSON; the pipeline is staged and persisted (`planned → drafting → ready`) so a refresh mid-flight always recovers.
 
-### Commit types
-
-`feat` · `fix` · `docs` · `style` · `refactor` · `perf` · `test` · `build` · `ci` · `chore` · `revert`
-
-## Quick Start with Claude (No Tech Skills Needed)
-
-Not a developer? No problem. Just copy the prompt below and paste it into [Claude](https://claude.ai) or any Claude agent. It will set up the entire project for you automatically.
-
-```
-Please help me set up a new web project using this template: https://github.com/honguyenhaituan/vibe-nextjs.git
-
-Here's what I need you to do:
-1. Ask me what I want to name my project, then clone the repository into a folder with that name
-2. Install all dependencies using pnpm
-3. Start the development server so I can see the app in my browser
-
-If pnpm is not installed on my machine, please install it first.
-Once everything is running, let me know the local URL to open in my browser and what file I should edit to start customizing the site.
-```
-
-Once your project is running, open [`PROMPTS.md`](./PROMPTS.md) for a cheat sheet of prompts to start building.
-
-Claude will handle the terminal commands and guide you through each step.
-
----
-
-## Getting Started
+## Running locally
 
 ```bash
-# 1. Clone and rename
-git clone https://github.com/your-username/vibe-nextjs.git my-new-project
-cd my-new-project
-
-# 2. Install dependencies
 pnpm install
-
-# 3. Start the dev server
-pnpm dev
+cp .env.example .env   # fill in the values below
+pnpm db:migrate        # create the schema
+pnpm dev               # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and start editing `src/app/page.tsx`.
+### Environment
 
-## Scripts
+| Var                                                      | Purpose                                                               |
+| -------------------------------------------------------- | --------------------------------------------------------------------- |
+| `DATABASE_URL`                                           | Supabase Postgres connection string                                   |
+| `LITELLM_BASE_URL` / `LITELLM_API_KEY` / `LITELLM_MODEL` | OpenAI-compatible LLM gateway                                         |
+| `AUTH_SECRET`                                            | session-signing secret (`openssl rand -base64 32`)                    |
+| `VERCEL_OIDC_TOKEN` + `BLOB_STORE_ID`                    | Vercel Blob auth (auto-injected on Vercel; `vercel env pull` locally) |
+
+> Note: `src/server/db/index.ts` strips `sslmode` from the connection string and relaxes TLS chain verification — the Supabase pooler presents a cert chain Node's `pg` driver rejects under `sslmode=require`.
+
+### Tests
 
 ```bash
-pnpm dev          # Start development server
-pnpm build        # Production build
-pnpm start        # Start production server
-pnpm lint         # Run ESLint
-pnpm lint:fix     # Run ESLint with auto-fix
-pnpm format       # Format all files with Prettier
-pnpm format:check # Check formatting without writing
-pnpm type-check   # TypeScript type checking
+pnpm test         # Vitest — parser, source-id validation, auth, content helpers, markdown export
+pnpm type-check
+pnpm build
 ```
+
+## Using it
+
+1. Sign up (open registration, no email verification).
+2. **New article** → drop one or more `.docx` / `.txt` / `.md` files → **Plan**.
+3. Review/adjust the skeleton → **Draft all**.
+4. Edit any field; click claims to see their source; mark them verified; add images from your notes or upload new ones.
+5. **Copy as Markdown** to take it into a CMS.
+
+Sample fixtures used during development live in `samples/` (a Komodo pocket guide with embedded images, multi-file Chiang Mai elephant notes, a Sapa transcript, and two edge cases — an empty file and non-travel junk).
+
+## Scope notes
+
+This handles the unhappy path on purpose: bad/empty/unsupported uploads, partial file failures, LLM JSON/timeout failures (with retry, preserving the upload), partial draft failures (per-section retry), oversized inputs (capped + flagged), and non-travel notes (detected, never fabricated). Consciously cut for the time box: multi-experience splitting, conflict-resolution UI, article-type selection, version history, library search, email verification / rate-limiting, a semantic AI-verifier pass, and OCR/audio/PDF ingestion.

@@ -15,13 +15,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Learn and Share',
-  description: 'Learn and Share application',
+  title: 'Article Studio — Seek Sophie',
+  description:
+    'Turn rough travel notes into grounded, source-attributed magazine articles.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Learn and Share',
+    title: 'Article Studio',
   },
   formatDetection: {
     telephone: false,
