@@ -11,12 +11,27 @@ datasource db {
   provider = "postgresql"
 }
 
-/// A sample resource demonstrating the layered backend (server/) structure.
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  body      String
-  published Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  articles     Article[]
+}
+
+model Article {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  articleType    String   @default("pocket_guide")
+  status         String   @default("planned")
+  content        Json
+  sourceSegments Json
+  media          Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
 }
