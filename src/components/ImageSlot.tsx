@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import type { Media } from '@/types';
 import { MediaTray } from './MediaTray';
@@ -33,12 +34,15 @@ export function ImageSlot({
             {label}
           </p>
         )}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={current.src}
-          alt={current.sourceFileName}
-          className="max-h-64 w-full object-cover"
-        />
+        <div className="relative h-64 w-full">
+          <Image
+            src={current.src}
+            alt={current.sourceFileName}
+            fill
+            sizes="(max-width: 1024px) 100vw, 700px"
+            className="object-cover"
+          />
+        </div>
         <div className="absolute right-2 bottom-2 flex gap-1.5 opacity-0 transition group-hover:opacity-100">
           <button
             type="button"

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import type { ArticleContent, Media } from '@/types';
 
 interface Props {
@@ -19,18 +20,20 @@ export function ArticleReader({ title, content, media }: Props) {
 
   return (
     <article className="mx-auto max-w-2xl px-6 py-12">
-      {hero && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={hero}
-          alt=""
-          className="mb-8 w-full rounded-xl object-cover"
-        />
-      )}
-
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
         {title}
       </h1>
+
+      {hero && (
+        <Image
+          src={hero}
+          alt=""
+          width={0}
+          height={0}
+          sizes="(max-width: 672px) 100vw, 672px"
+          className="mt-6 h-auto w-full rounded-xl"
+        />
+      )}
 
       {content.hookSubtitle.text && (
         <p className="mt-3 text-lg text-zinc-600">
@@ -52,16 +55,18 @@ export function ArticleReader({ title, content, media }: Props) {
             <h2 className="mb-3 text-xl font-semibold text-zinc-900">
               {s.heading}
             </h2>
-            {body && (
-              <p className="text-base leading-relaxed text-zinc-800">{body}</p>
-            )}
             {img && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={img}
                 alt=""
-                className="mt-4 w-full rounded-xl object-cover"
+                width={0}
+                height={0}
+                sizes="(max-width: 672px) 100vw, 672px"
+                className="mb-4 h-auto w-full rounded-xl"
               />
+            )}
+            {body && (
+              <p className="text-base leading-relaxed text-zinc-800">{body}</p>
             )}
           </section>
         );

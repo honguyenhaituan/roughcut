@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const provenanceEnum = z.enum(['sourced', 'ai_added', 'human']);
 export const llmProvenance = z.enum(['sourced', 'ai_added']);
+export const articleStatusEnum = z.enum(['planned', 'drafting', 'ready']);
+export type ArticleStatus = z.infer<typeof articleStatusEnum>;
 
 export const claimSchema = z.object({
   id: z.string(),

@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   turbopack: {},
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.public.blob.vercel-storage.com',
+      },
+    ],
+  },
 };
 
 export default withPWA(nextConfig);

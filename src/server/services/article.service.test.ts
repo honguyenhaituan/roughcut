@@ -79,6 +79,25 @@ describe('articleService.unpublish', () => {
   });
 });
 
+describe('articleService.update', () => {
+  it('passes a valid status through to the repository', async () => {
+    repo.findByIdForUser.mockResolvedValue(row({ sourceSegments: [] }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    repo.update.mockResolvedValue({ count: 1 } as any);
+    await articleService.update('a1', 'u1', { status: 'planned' });
+    const data = repo.update.mock.calls[0][2];
+    expect(data).toMatchObject({ status: 'planned' });
+  });
+
+  it('rejects an unknown status without writing', async () => {
+    repo.findByIdForUser.mockResolvedValue(row({ sourceSegments: [] }));
+    await expect(
+      articleService.update('a1', 'u1', { status: 'bogus' }),
+    ).rejects.toThrow();
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+});
+
 describe('articleService.getPublic', () => {
   it('returns only title/content/media for a published article', async () => {
     repo.findByPublicId.mockResolvedValue(

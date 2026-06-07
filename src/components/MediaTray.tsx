@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useRef, useState } from 'react';
 import type { Media } from '@/types';
 
@@ -60,17 +61,18 @@ export function MediaTray({ articleId, media, onUploaded, onPick }: Props) {
               title={m.sourceFileName}
               onClick={() => onPick?.(m.id)}
               className={[
-                'h-16 w-16 overflow-hidden rounded-md border border-zinc-200 bg-zinc-100 object-cover',
+                'relative h-16 w-16 overflow-hidden rounded-md border border-zinc-200 bg-zinc-100',
                 onPick
                   ? 'cursor-pointer transition hover:ring-2 hover:ring-zinc-400'
                   : 'cursor-default',
               ].join(' ')}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={m.src}
                 alt={m.sourceFileName}
-                className="h-full w-full object-cover"
+                fill
+                sizes="64px"
+                className="object-cover"
               />
             </button>
           ))}

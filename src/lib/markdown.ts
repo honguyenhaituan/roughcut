@@ -1,17 +1,32 @@
-import type { ArticleContent } from '@/server/validations/article.schema';
+import type {
+  ArticleContent,
+  Media,
+} from '@/server/validations/article.schema';
+
+function imageSrc(media: Media[], id: string | null): string | null {
+  if (!id) return null;
+  return media.find((m) => m.id === id)?.src ?? null;
+}
 
 export function articleToMarkdown(article: {
   title: string;
   content: ArticleContent;
+  media?: Media[];
 }): string {
   const c = article.content;
+  const media = article.media ?? [];
   const out: string[] = [`# ${article.title}`, ''];
+
+  const hero = imageSrc(media, c.heroImageId);
+  if (hero) out.push(`![${article.title}](${hero})`, '');
 
   if (c.hookSubtitle?.text) out.push(`*${c.hookSubtitle.text}*`, '');
   if (c.intro?.text) out.push(c.intro.text, '');
 
   for (const s of c.sections) {
     out.push(`## ${s.heading}`, '');
+    const img = imageSrc(media, s.imageId);
+    if (img) out.push(`![${s.heading}](${img})`, '');
     const body = s.body.map((cl) => cl.text).join(' ');
     if (body) out.push(body, '');
   }

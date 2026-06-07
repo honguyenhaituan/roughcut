@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { ArticleContent, Segment, Media } from '@/types';
 
@@ -17,13 +17,28 @@ interface ArticleRow {
 interface Props {
   article: ArticleRow;
   onDrafted: (updated: ArticleRow) => void;
+  /** Expose the draft trigger to the parent so the action can live in the header. */
+  registerDraft: (fn: (() => void) | null) => void;
+  /** Report draft phase/state so the header button can reflect it. */
+  onStateChange: (state: PlanState) => void;
 }
 
 type Section = ArticleContent['sections'][number];
 
-type DraftPhase = 'idle' | 'saving' | 'drafting' | 'error';
+export type DraftPhase = 'idle' | 'saving' | 'drafting' | 'error';
 
-export function SkeletonReview({ article, onDrafted }: Props) {
+interface PlanState {
+  phase: DraftPhase;
+  hasExistingDraft: boolean;
+  error: string | null;
+}
+
+export function SkeletonReview({
+  article,
+  onDrafted,
+  registerDraft,
+  onStateChange,
+}: Props) {
   const { content: initialContent } = article;
 
   const [sections, setSections] = useState<Section[]>(initialContent.sections);
@@ -91,7 +106,7 @@ export function SkeletonReview({ article, onDrafted }: Props) {
     );
   };
 
-  const handleDraftAll = async () => {
+  const handleDraftAll = useCallback(async () => {
     setPhase('saving');
     setError(null);
     try {
@@ -110,10 +125,16 @@ export function SkeletonReview({ article, onDrafted }: Props) {
       }
 
       setPhase('drafting');
+      // Only draft sections without a body — returning to the plan after an
+      // initial draft must not overwrite sections the user already has. On a
+      // fresh plan every body is empty, so this drafts everything as before.
+      const emptyIds = sections
+        .filter((s) => s.body.length === 0)
+        .map((s) => s.id);
       const draftRes = await fetch(`/api/articles/${article.id}/draft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ sectionIds: emptyIds }),
       });
       if (!draftRes.ok) {
         const j = (await draftRes.json().catch(() => ({}))) as {
@@ -127,9 +148,21 @@ export function SkeletonReview({ article, onDrafted }: Props) {
       setError((e as Error).message);
       setPhase('error');
     }
-  };
+  }, [article.id, initialContent, sections, onDrafted]);
 
-  const inFlight = phase === 'saving' || phase === 'drafting';
+  // Returning to the plan after drafting — at least one section already has prose.
+  const hasExistingDraft = sections.some((s) => s.body.length > 0);
+
+  // Surface the draft trigger + state to the parent so the action button can
+  // live in the global header (where "Reviewing plan" used to be).
+  useEffect(() => {
+    registerDraft(handleDraftAll);
+    return () => registerDraft(null);
+  }, [registerDraft, handleDraftAll]);
+
+  useEffect(() => {
+    onStateChange({ phase, hasExistingDraft, error });
+  }, [phase, hasExistingDraft, error, onStateChange]);
 
   if (!initialContent.isTravelExperience) {
     return (
@@ -253,34 +286,6 @@ export function SkeletonReview({ article, onDrafted }: Props) {
               />
             </div>
           </section>
-
-          {/* Draft CTA */}
-          <div className="border-t border-zinc-200 pt-6">
-            {(phase === 'error' || error) && (
-              <p className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={handleDraftAll}
-              disabled={inFlight}
-              className="w-full rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-60"
-            >
-              {phase === 'saving'
-                ? 'Saving edits…'
-                : phase === 'drafting'
-                  ? 'Writing your article…'
-                  : 'Draft all sections'}
-            </button>
-            <p className="mt-2 text-center text-xs text-zinc-400">
-              {phase === 'saving'
-                ? 'Persisting your edits…'
-                : phase === 'drafting'
-                  ? 'This takes about 30–60 seconds.'
-                  : 'Writes full prose for each section using only your notes; AI-added details are flagged for you to verify.'}
-            </p>
-          </div>
         </div>
 
         {/* Right: source notes (references) */}
@@ -322,8 +327,46 @@ interface RailProps {
   onClear: () => void;
 }
 
-function SourceNotesRail({ segments, activeSection, onClear }: RailProps) {
-  const linked = new Set(activeSection?.sourceSegmentIds ?? []);
+function SourceNoteItem({ seg, linked }: { seg: Segment; linked: boolean }) {
+  return (
+    <li
+      className={`rounded-lg border p-3 transition ${
+        linked
+          ? 'border-zinc-300 bg-zinc-50 shadow-sm'
+          : 'border-zinc-200 bg-white'
+      }`}
+    >
+      <div className="mb-1 flex items-center gap-2">
+        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+          {seg.id}
+        </span>
+        <span className="truncate text-xs text-zinc-400">{seg.fileName}</span>
+      </div>
+      <p className="text-sm leading-relaxed text-zinc-700">{seg.text}</p>
+    </li>
+  );
+}
+
+export function SourceNotesRail({
+  segments,
+  activeSection,
+  onClear,
+}: RailProps) {
+  // Track which section the user expanded so we can re-collapse on section change.
+  const [expandedForSection, setExpandedForSection] = useState<string | null>(
+    null,
+  );
+  const showAll =
+    expandedForSection !== null && expandedForSection === activeSection?.id;
+
+  const linkedIds = new Set(activeSection?.sourceSegmentIds ?? []);
+  const linked = activeSection
+    ? segments.filter((s) => linkedIds.has(s.id))
+    : [];
+  const rest = activeSection
+    ? segments.filter((s) => !linkedIds.has(s.id))
+    : segments;
+  const visibleRest = activeSection && !showAll ? [] : rest;
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white">
@@ -357,32 +400,35 @@ function SourceNotesRail({ segments, activeSection, onClear }: RailProps) {
         </p>
       ) : (
         <ul className="max-h-[60vh] space-y-2 overflow-y-auto p-3 lg:max-h-[calc(100vh-11rem)]">
-          {segments.map((seg) => {
-            const isLinked = linked.has(seg.id);
-            const dim = activeSection !== null && !isLinked;
-            return (
-              <li
-                key={seg.id}
-                className={`rounded-lg border p-3 transition ${
-                  isLinked
-                    ? 'border-zinc-300 bg-zinc-50 shadow-sm'
-                    : 'border-zinc-200 bg-white'
-                } ${dim ? 'opacity-40' : ''}`}
+          {activeSection && linked.length === 0 && (
+            <li className="px-1 py-2 text-xs text-zinc-400">
+              No notes linked to this section.
+            </li>
+          )}
+          {linked.map((seg) => (
+            <SourceNoteItem key={seg.id} seg={seg} linked />
+          ))}
+
+          {activeSection && rest.length > 0 && (
+            <li>
+              <button
+                type="button"
+                aria-expanded={showAll}
+                onClick={() =>
+                  setExpandedForSection(showAll ? null : activeSection.id)
+                }
+                className="w-full rounded-md py-1.5 text-xs text-zinc-500 transition hover:bg-zinc-50"
               >
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
-                    {seg.id}
-                  </span>
-                  <span className="truncate text-xs text-zinc-400">
-                    {seg.fileName}
-                  </span>
-                </div>
-                <p className="text-sm leading-relaxed text-zinc-700">
-                  {seg.text}
-                </p>
-              </li>
-            );
-          })}
+                {showAll
+                  ? 'Hide other notes'
+                  : `Show ${rest.length} more note${rest.length !== 1 ? 's' : ''}`}
+              </button>
+            </li>
+          )}
+
+          {visibleRest.map((seg) => (
+            <SourceNoteItem key={seg.id} seg={seg} linked={false} />
+          ))}
         </ul>
       )}
     </div>

@@ -1,56 +1,54 @@
 'use client';
 
-import type { ReactNode } from 'react';
 import type { ArticleContent } from '@/types';
 import { summarize } from '@/lib/article-content';
+import { Tooltip } from './Tooltip';
 
 interface Props {
   content: ArticleContent;
-  onSave: () => void;
-  exportButton: ReactNode;
 }
 
-export function SummaryBar({ content, onSave, exportButton }: Props) {
+/** Compact provenance counters for the workspace header. */
+export function SummaryBar({ content }: Props) {
   const { grounded, unverified, gaps } = summarize(content);
 
-  const handleSave = () => {
-    if (
-      unverified > 0 &&
-      !window.confirm(
-        `${unverified} AI-added claim(s) are still unverified. Save anyway?`,
-      )
-    ) {
-      return;
-    }
-    onSave();
-  };
-
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-      <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-sm">
-        <span className="text-green-700">{grounded} grounded</span>
-        <span className="text-zinc-400">·</span>
-        {unverified > 0 ? (
-          <span className="font-medium text-amber-600">
-            {unverified} AI-added unverified
-          </span>
-        ) : (
-          <span className="text-zinc-500">0 AI-added unverified</span>
-        )}
-        <span className="text-zinc-400">·</span>
-        <span className="text-zinc-500">{gaps} open questions</span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleSave}
-          className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-zinc-700"
+    <div className="hidden items-center gap-3 text-xs lg:flex">
+      <Tooltip
+        tone="green"
+        label="Green — grounded claims backed by your source notes"
+      >
+        <span className="flex items-center gap-1 text-zinc-500">
+          <span className="size-1.5 rounded-full bg-green-500" />
+          {grounded}
+        </span>
+      </Tooltip>
+      <Tooltip
+        tone="amber"
+        label="Amber — AI-added claims not in your notes, still unverified"
+      >
+        <span
+          className={`flex items-center gap-1 ${
+            unverified > 0 ? 'font-medium text-amber-600' : 'text-zinc-500'
+          }`}
         >
-          Save
-        </button>
-        {exportButton}
-      </div>
+          <span
+            className={`size-1.5 rounded-full ${
+              unverified > 0 ? 'bg-amber-500' : 'bg-zinc-300'
+            }`}
+          />
+          {unverified}
+        </span>
+      </Tooltip>
+      <Tooltip
+        tone="zinc"
+        label="Open questions still to resolve before publishing"
+      >
+        <span className="flex items-center gap-1 text-zinc-500">
+          <span className="size-1.5 rounded-full bg-zinc-400" />
+          {gaps}
+        </span>
+      </Tooltip>
     </div>
   );
 }

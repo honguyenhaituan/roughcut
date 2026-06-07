@@ -1,13 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { Claim, ArticleContent, Segment, Media } from '@/types';
+import { splitClaimInSection, removeClaimById } from '@/lib/article-content';
 import { ClaimText } from './ClaimText';
-import { SummaryBar } from './SummaryBar';
-import { SourcePanel } from './SourcePanel';
+import { SourceContent } from './SourceContent';
 import { OpenQuestionsPanel } from './OpenQuestionsPanel';
 import { AssumptionsPanel } from './AssumptionsPanel';
-import ExportMarkdownButton from './ExportMarkdownButton';
 import { ImageSlot } from './ImageSlot';
 import { MediaTray } from './MediaTray';
 
@@ -29,9 +28,8 @@ interface Props {
   selectedClaim: Claim | null;
   onTitleChange: (t: string) => void;
   onClaimChange: (c: Claim) => void;
-  onSelect: (c: Claim) => void;
+  onSelect: (c: Claim | null) => void;
   patchContent: (next: ArticleContent) => void;
-  onSave: () => void;
   onMediaUploaded: (m: Media) => void;
   onServerWriteStart?: () => void;
   onServerWriteEnd?: () => void;
@@ -52,7 +50,6 @@ export function ArticleEditor({
   onClaimChange,
   onSelect,
   patchContent,
-  onSave,
   onMediaUploaded,
   onServerWriteStart,
   onServerWriteEnd,
@@ -60,9 +57,53 @@ export function ArticleEditor({
   const [sectionStates, setSectionStates] = useState<
     Record<string, SectionDraftState>
   >({});
+  // Id of a freshly-split claim that should grab focus on its next render.
+  const [focusClaimId, setFocusClaimId] = useState<string | null>(null);
+  const clearFocus = useCallback(() => setFocusClaimId(null), []);
 
-  const claim = (c: Claim) => (
-    <ClaimText claim={c} onSelect={onSelect} onChange={onClaimChange} />
+  const claim = (c: Claim, onDelete?: () => void) => (
+    <ClaimText
+      claim={c}
+      isSelected={selectedClaim?.id === c.id}
+      onSelect={onSelect}
+      onChange={onClaimChange}
+      onDelete={onDelete}
+    />
+  );
+
+  const deleteClaim = (c: Claim) => () =>
+    patchContent(removeClaimById(content, c.id));
+
+  const splitBody = (
+    sectionId: string,
+    claimId: string,
+    before: string,
+    after: string,
+  ) => {
+    const newClaim: Claim = {
+      id: crypto.randomUUID(),
+      text: after,
+      sourceSegmentIds: [],
+      provenance: 'human',
+      verified: false,
+    };
+    patchContent(
+      splitClaimInSection(content, sectionId, claimId, before, newClaim),
+    );
+    setFocusClaimId(newClaim.id);
+  };
+
+  const bodyClaim = (sectionId: string, c: Claim) => (
+    <ClaimText
+      claim={c}
+      isSelected={selectedClaim?.id === c.id}
+      onSelect={onSelect}
+      onChange={onClaimChange}
+      onSplit={(before, after) => splitBody(sectionId, c.id, before, after)}
+      onDelete={deleteClaim(c)}
+      autoFocus={focusClaimId === c.id}
+      onFocused={clearFocus}
+    />
   );
 
   const regenerateSection = async (sectionId: string) => {
@@ -143,15 +184,17 @@ export function ArticleEditor({
         <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-400 uppercase">
           Hook
         </p>
-        <p className="mb-6 text-base leading-relaxed">
+        <div className="mb-6 text-base leading-relaxed">
           {claim(content.hookSubtitle)}
-        </p>
+        </div>
 
         {/* Intro */}
         <p className="mb-1 text-xs font-semibold tracking-wide text-zinc-400 uppercase">
           Intro
         </p>
-        <p className="mb-8 text-base leading-relaxed">{claim(content.intro)}</p>
+        <div className="mb-8 text-base leading-relaxed">
+          {claim(content.intro)}
+        </div>
 
         {/* Sections */}
         {content.sections.map((section) => {
@@ -200,17 +243,6 @@ export function ArticleEditor({
                   </button>
                 </p>
               )}
-              <p className="mb-4 text-base leading-relaxed">
-                {section.body.map((c, i) => (
-                  <span key={c.id}>
-                    {i > 0 && ' '}
-                    {claim(c)}
-                  </span>
-                ))}
-                {section.body.length === 0 && st?.loading && (
-                  <span className="text-zinc-400 italic">Drafting…</span>
-                )}
-              </p>
               <ImageSlot
                 label="Section image"
                 imageId={section.imageId}
@@ -226,6 +258,14 @@ export function ArticleEditor({
                 }
                 onUploaded={onMediaUploaded}
               />
+              <div className="mb-4 space-y-1 text-base leading-relaxed">
+                {section.body.map((c) => (
+                  <div key={c.id}>{bodyClaim(section.id, c)}</div>
+                ))}
+                {section.body.length === 0 && st?.loading && (
+                  <p className="px-1.5 text-zinc-400 italic">Drafting…</p>
+                )}
+              </div>
             </section>
           );
         })}
@@ -239,10 +279,10 @@ export function ArticleEditor({
             <dl className="space-y-2">
               {content.keyFacts.map((kf) => (
                 <div key={kf.id} className="flex gap-2 text-sm">
-                  <dt className="shrink-0 font-medium text-zinc-600">
+                  <dt className="mt-1 shrink-0 font-medium text-zinc-600">
                     {kf.label}:
                   </dt>
-                  <dd>{claim(kf)}</dd>
+                  <dd className="min-w-0 flex-1">{claim(kf)}</dd>
                 </div>
               ))}
             </dl>
@@ -260,7 +300,7 @@ export function ArticleEditor({
                 <ul className="space-y-1.5">
                   {content.bestFor.map((c) => (
                     <li key={c.id} className="text-sm">
-                      {claim(c)}
+                      {claim(c, deleteClaim(c))}
                     </li>
                   ))}
                 </ul>
@@ -274,7 +314,7 @@ export function ArticleEditor({
                 <ul className="space-y-1.5">
                   {content.notFor.map((c) => (
                     <li key={c.id} className="text-sm">
-                      {claim(c)}
+                      {claim(c, deleteClaim(c))}
                     </li>
                   ))}
                 </ul>
@@ -296,9 +336,9 @@ export function ArticleEditor({
             <ul className="space-y-2">
               {content.ethicsSafety.map((c) => (
                 <li key={c.id} className="flex items-start gap-2 text-sm">
-                  {claim(c)}
+                  {claim(c, deleteClaim(c))}
                   {c.needsExternalSource && (
-                    <span className="mt-0.5 shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                    <span className="mt-1.5 shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
                       needs external source
                     </span>
                   )}
@@ -317,7 +357,7 @@ export function ArticleEditor({
             <ul className="space-y-2">
               {content.topTips.map((c) => (
                 <li key={c.id} className="text-sm">
-                  {claim(c)}
+                  {claim(c, deleteClaim(c))}
                 </li>
               ))}
             </ul>
@@ -343,13 +383,28 @@ export function ArticleEditor({
       </main>
 
       {/* Right rail */}
-      <aside className="w-full shrink-0 space-y-4 py-10 lg:sticky lg:top-20 lg:w-80">
-        <SummaryBar
-          content={content}
-          onSave={onSave}
-          exportButton={<ExportMarkdownButton article={{ title, content }} />}
-        />
-        <SourcePanel claim={selectedClaim} segments={article.sourceSegments} />
+      <aside className="w-full shrink-0 space-y-4 py-10 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:w-80 lg:overflow-y-auto">
+        {selectedClaim && (
+          <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm lg:sticky lg:top-0 lg:z-10">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+                Source
+              </h3>
+              <button
+                type="button"
+                onClick={() => onSelect(null)}
+                aria-label="Close source"
+                className="rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600"
+              >
+                ✕
+              </button>
+            </div>
+            <SourceContent
+              claim={selectedClaim}
+              segments={article.sourceSegments}
+            />
+          </div>
+        )}
         <OpenQuestionsPanel questions={content.openQuestions} />
         <AssumptionsPanel />
         <div>

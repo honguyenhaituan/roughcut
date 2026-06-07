@@ -1,23 +1,31 @@
-import 'server-only';
-import { generateObject } from 'ai';
 import { model } from '@/server/llm/client';
 import {
-  planOutputSchema,
+  DRAFT_SYSTEM,
+  draftUser,
+  PLAN_SYSTEM,
+  planUser,
+} from '@/server/llm/prompts';
+import {
   draftOutputSchema,
+  planOutputSchema,
   type ArticleContent,
   type Segment,
 } from '@/server/validations/article.schema';
-import {
-  PLAN_SYSTEM,
-  planUser,
-  DRAFT_SYSTEM,
-  draftUser,
-} from '@/server/llm/prompts';
+import { generateObject } from 'ai';
+import 'server-only';
 
 const cid = () => crypto.randomUUID();
 
 export function validateSourceIds(ids: string[], pool: Set<string>): string[] {
   return ids.filter((id) => pool.has(id));
+}
+export function resolveProvenance<P extends string>(
+  provenance: P,
+  validatedIds: string[],
+): P | 'ai_added' {
+  return provenance === 'sourced' && validatedIds.length === 0
+    ? 'ai_added'
+    : provenance;
 }
 
 export async function plan(
@@ -35,13 +43,16 @@ export async function plan(
     text: string;
     sourceSegmentIds: string[];
     provenance: 'sourced' | 'ai_added';
-  }) => ({
-    id: cid(),
-    text: c.text,
-    sourceSegmentIds: validateSourceIds(c.sourceSegmentIds, pool),
-    provenance: c.provenance,
-    verified: false,
-  });
+  }) => {
+    const sourceSegmentIds = validateSourceIds(c.sourceSegmentIds, pool);
+    return {
+      id: cid(),
+      text: c.text,
+      sourceSegmentIds,
+      provenance: resolveProvenance(c.provenance, sourceSegmentIds),
+      verified: false,
+    };
+  };
   const content: ArticleContent = {
     isTravelExperience: object.isTravelExperience,
     hookSubtitle: claim(object.hookSubtitle),
@@ -101,11 +112,14 @@ export async function draftSection(args: {
       segments: assigned.map((s) => ({ id: s.id, text: s.text })),
     }),
   });
-  return object.body.map((c) => ({
-    id: cid(),
-    text: c.text,
-    sourceSegmentIds: validateSourceIds(c.sourceSegmentIds, pool),
-    provenance: c.provenance,
-    verified: false,
-  }));
+  return object.body.map((c) => {
+    const sourceSegmentIds = validateSourceIds(c.sourceSegmentIds, pool);
+    return {
+      id: cid(),
+      text: c.text,
+      sourceSegmentIds,
+      provenance: resolveProvenance(c.provenance, sourceSegmentIds),
+      verified: false,
+    };
+  });
 }

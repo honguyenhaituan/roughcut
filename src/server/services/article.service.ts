@@ -4,9 +4,10 @@ import { articleRepository } from '@/server/repositories/article.repository';
 import { parseFiles } from './parse.service';
 import { segmentSources } from './resegment.service';
 import { mediaService } from './media.service';
-import { plan, draftSection } from './generation.service';
+import { plan, draftSection, resolveProvenance } from './generation.service';
 import {
   contentSchema,
+  articleStatusEnum,
   type ArticleContent,
   type Segment,
   type Media,
@@ -36,10 +37,22 @@ function sanitizeContent(
   content: ArticleContent,
   pool: Set<string>,
 ): ArticleContent {
-  const fix = <T extends { sourceSegmentIds: string[] }>(c: T): T => ({
-    ...c,
-    sourceSegmentIds: c.sourceSegmentIds.filter((x) => pool.has(x)),
-  });
+  const fix = <T extends { sourceSegmentIds: string[] }>(c: T): T => {
+    const sourceSegmentIds = c.sourceSegmentIds.filter((x) => pool.has(x));
+    const withProvenance = c as T & { provenance?: string };
+    return {
+      ...c,
+      sourceSegmentIds,
+      ...(withProvenance.provenance !== undefined
+        ? {
+            provenance: resolveProvenance(
+              withProvenance.provenance,
+              sourceSegmentIds,
+            ),
+          }
+        : {}),
+    } as T;
+  };
   return {
     ...content,
     hookSubtitle: fix(content.hookSubtitle),
@@ -140,6 +153,10 @@ export const articleService = {
   ) {
     const existing = await articleRepository.findByIdForUser(id, userId);
     if (!existing) throw new Error('NOT_FOUND');
+    const status =
+      patch.status !== undefined
+        ? articleStatusEnum.parse(patch.status)
+        : undefined;
     let content = patch.content;
     if (content) {
       const pool = new Set(
@@ -152,7 +169,7 @@ export const articleService = {
       ...(content && {
         content: content as unknown as Prisma.InputJsonValue,
       }),
-      ...(patch.status && { status: patch.status }),
+      ...(status && { status }),
     });
     return articleRepository.findByIdForUser(id, userId);
   },

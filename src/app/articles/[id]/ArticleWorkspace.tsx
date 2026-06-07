@@ -4,9 +4,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ArticleContent, Claim, Segment, Media } from '@/types';
 import { replaceClaim } from '@/lib/article-content';
 import { ArticleEditor } from '@/components/ArticleEditor';
-import { SkeletonReview } from '@/components/SkeletonReview';
+import { ArticleReader } from '@/components/ArticleReader';
+import { SkeletonReview, type DraftPhase } from '@/components/SkeletonReview';
 import { AppHeader } from '@/components/AppHeader';
 import { PublishControl } from '@/components/PublishControl';
+import { SummaryBar } from '@/components/SummaryBar';
+import ExportMarkdownButton from '@/components/ExportMarkdownButton';
 
 interface ArticleRow {
   id: string;
@@ -35,6 +38,30 @@ export default function ArticleWorkspace({ article: initial }: Props) {
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [draftRetryError, setDraftRetryError] = useState(false);
+  const [mode, setMode] = useState<'edit' | 'preview'>('edit');
+
+  // Outline draft state — lifted from SkeletonReview so the draft action can
+  // live in the app header (where the "Reviewing plan" badge used to be).
+  const [planPhase, setPlanPhase] = useState<DraftPhase>('idle');
+  const [planHasDraft, setPlanHasDraft] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const planDraftRef = useRef<(() => void) | null>(null);
+
+  const registerPlanDraft = useCallback((fn: (() => void) | null) => {
+    planDraftRef.current = fn;
+  }, []);
+  const onPlanStateChange = useCallback(
+    (s: {
+      phase: DraftPhase;
+      hasExistingDraft: boolean;
+      error: string | null;
+    }) => {
+      setPlanPhase(s.phase);
+      setPlanHasDraft(s.hasExistingDraft);
+      setPlanError(s.error);
+    },
+    [],
+  );
 
   const addMediaToState = (m: Media) => setMedia((prev) => [...prev, m]);
 
@@ -45,7 +72,7 @@ export default function ArticleWorkspace({ article: initial }: Props) {
   // can't race the draft write and clobber it (no version guard on the row).
   const serverWriteInFlight = useRef(false);
 
-  // Explicit save — also used by SummaryBar's Save button
+  // Persist title + content; driven by the debounced autosave effect below.
   const doSave = useCallback(async () => {
     if (serverWriteInFlight.current) return;
     setSaveState('saving');
@@ -130,11 +157,46 @@ export default function ArticleWorkspace({ article: initial }: Props) {
     }
   }, [article.id, applyDrafted, beginServerWrite, endServerWrite]);
 
+  // Return to the skeleton/plan view to add, remove, or relink sections.
+  // Optimistic: switch the view immediately, then persist the status so a reload
+  // still lands on the plan. Drafted bodies stay in `content` and are preserved.
+  const editPlan = useCallback(async () => {
+    setStatus('planned');
+    try {
+      await fetch(`/api/articles/${article.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'planned' }),
+      });
+    } catch {
+      // View already switched; a failed persist only loses the "editing plan"
+      // memory across a reload.
+    }
+  }, [article.id]);
+
   const headerRight =
     status === 'planned' ? (
-      <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
-        Reviewing plan
-      </span>
+      <>
+        {planPhase === 'error' && planError && (
+          <span className="hidden max-w-48 truncate text-xs text-red-600 sm:inline">
+            {planError}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => planDraftRef.current?.()}
+          disabled={planPhase === 'saving' || planPhase === 'drafting'}
+          className="rounded-md bg-zinc-900 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-60"
+        >
+          {planPhase === 'saving'
+            ? 'Saving edits…'
+            : planPhase === 'drafting'
+              ? 'Writing…'
+              : planHasDraft
+                ? 'Save & update draft'
+                : 'Draft all sections'}
+        </button>
+      </>
     ) : status === 'drafting' ? (
       <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
         <span className="size-1.5 animate-pulse rounded-full bg-amber-500" />
@@ -142,18 +204,46 @@ export default function ArticleWorkspace({ article: initial }: Props) {
       </span>
     ) : (
       <>
-        <span className="text-xs text-zinc-400">
+        <span className="w-14 text-xs text-zinc-400" aria-live="polite">
           {saveState === 'saving'
             ? 'Saving…'
             : saveState === 'saved'
               ? 'Saved'
-              : ' '}
+              : ''}
         </span>
-        <PublishControl
-          articleId={initial.id}
-          published={initial.published}
-          publicId={initial.publicId}
-        />
+        <SummaryBar content={content} />
+
+        <div className="flex rounded-md border border-zinc-200 bg-white p-0.5 text-xs font-medium">
+          <button
+            type="button"
+            onClick={editPlan}
+            className="rounded px-2.5 py-1 text-zinc-600 transition hover:bg-zinc-100"
+          >
+            Outline
+          </button>
+          {(['edit', 'preview'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`rounded px-2.5 py-1 capitalize transition ${
+                mode === m
+                  ? 'bg-zinc-900 text-white'
+                  : 'text-zinc-600 hover:bg-zinc-100'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <ExportMarkdownButton article={{ title, content, media }} />
+          <PublishControl
+            articleId={initial.id}
+            published={initial.published}
+            publicId={initial.publicId}
+          />
+        </div>
       </>
     );
 
@@ -165,6 +255,8 @@ export default function ArticleWorkspace({ article: initial }: Props) {
         <SkeletonReview
           article={{ ...article, content, title }}
           onDrafted={applyDrafted}
+          registerDraft={registerPlanDraft}
+          onStateChange={onPlanStateChange}
         />
       )}
 
@@ -195,7 +287,6 @@ export default function ArticleWorkspace({ article: initial }: Props) {
             onClaimChange={onClaimChange}
             onSelect={setSelectedClaim}
             patchContent={patchContent}
-            onSave={doSave}
             onMediaUploaded={addMediaToState}
             onServerWriteStart={beginServerWrite}
             onServerWriteEnd={endServerWrite}
@@ -203,23 +294,25 @@ export default function ArticleWorkspace({ article: initial }: Props) {
         </div>
       )}
 
-      {status === 'ready' && (
-        <ArticleEditor
-          article={article}
-          title={title}
-          content={content}
-          media={media}
-          selectedClaim={selectedClaim}
-          onTitleChange={setTitle}
-          onClaimChange={onClaimChange}
-          onSelect={setSelectedClaim}
-          patchContent={patchContent}
-          onSave={doSave}
-          onMediaUploaded={addMediaToState}
-          onServerWriteStart={beginServerWrite}
-          onServerWriteEnd={endServerWrite}
-        />
-      )}
+      {status === 'ready' &&
+        (mode === 'preview' ? (
+          <ArticleReader title={title} content={content} media={media} />
+        ) : (
+          <ArticleEditor
+            article={article}
+            title={title}
+            content={content}
+            media={media}
+            selectedClaim={selectedClaim}
+            onTitleChange={setTitle}
+            onClaimChange={onClaimChange}
+            onSelect={setSelectedClaim}
+            patchContent={patchContent}
+            onMediaUploaded={addMediaToState}
+            onServerWriteStart={beginServerWrite}
+            onServerWriteEnd={endServerWrite}
+          />
+        ))}
     </div>
   );
 }
