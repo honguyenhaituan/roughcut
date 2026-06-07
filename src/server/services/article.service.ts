@@ -2,6 +2,7 @@ import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
 import { articleRepository } from '@/server/repositories/article.repository';
 import { parseFiles } from './parse.service';
+import { segmentSources } from './resegment.service';
 import { mediaService } from './media.service';
 import { plan, draftSection } from './generation.service';
 import {
@@ -61,12 +62,24 @@ export const articleService = {
     userId: string,
     files: { name: string; buffer: Buffer; mimeType: string }[],
   ) {
-    const { segments, images, truncated, skipped } = await parseFiles(files);
-    if (segments.length === 0) {
+    const {
+      segments: syntactic,
+      sources,
+      images,
+      truncated: parseTruncated,
+      skipped,
+    } = await parseFiles(files);
+    if (syntactic.length === 0) {
       throw new Error(
         skipped[0]?.reason ?? 'No usable text found in the uploaded files',
       );
     }
+    // AI regroups the syntactic fragments into semantically-coherent segments;
+    // falls back to the syntactic split on any LLM/validation failure.
+    const { segments, truncated } = await segmentSources(sources, {
+      segments: syntactic,
+      truncated: parseTruncated,
+    });
     const media = images.length
       ? await mediaService.uploadExtracted(images)
       : [];

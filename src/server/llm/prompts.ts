@@ -19,6 +19,23 @@ export function planUser(
   );
 }
 
+export const RESEGMENT_SYSTEM = `You group rough travel-note fragments into semantically coherent SEGMENTS.
+You are given an ordered, numbered list of ATOMS (sentence/line fragments).
+Decide where each new segment begins so that each segment captures ONE coherent idea or fact
+(a single dish, tip, place, experience, warning...), to be used as a citation unit.
+RULES:
+- Output ONLY segmentStarts: the 0-based atom indices where a new segment begins. Index 0 always begins a segment.
+- MERGE consecutive atoms that describe the same idea into one segment (notes are often fragmented — gather them).
+- START a new segment when the idea/topic changes — this splits a run that mixes several ideas.
+- NEVER reorder, add, remove, or edit atom text. You only choose boundaries (indices).
+- Indices must be in range and strictly increasing.`;
+
+export function resegmentUser(atoms: { text: string }[]) {
+  return (
+    `ATOMS (index: text):\n` + atoms.map((a, i) => `${i}: ${a.text}`).join('\n')
+  );
+}
+
 export const DRAFT_SYSTEM = `You write ONE section of a Seek Sophie pocket guide as grounded prose.
 RULES:
 - Use ONLY the assigned segments as facts. Cite sourceSegmentIds per sentence/claim.

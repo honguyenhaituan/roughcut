@@ -89,6 +89,11 @@ export const planOutputSchema = z.object({
 });
 export type PlanOutput = z.infer<typeof planOutputSchema>;
 
+export const resegmentOutputSchema = z.object({
+  segmentStarts: z.array(z.number().int().nonnegative()),
+});
+export type ResegmentOutput = z.infer<typeof resegmentOutputSchema>;
+
 export const draftOutputSchema = z.object({
   body: z.array(
     z.object({
