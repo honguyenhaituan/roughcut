@@ -1,5 +1,14 @@
 export type Nullable<T> = T | null;
 
+export type {
+  Claim,
+  ArticleContent,
+  Segment,
+  Media,
+  PlanOutput,
+  DraftOutput,
+} from '@/server/validations/article.schema';
+
 export interface ApiErrorResponse {
   error: string;
 }
