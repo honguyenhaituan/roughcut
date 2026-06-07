@@ -5,6 +5,7 @@ import type { ArticleContent, Claim, Segment, Media } from '@/types';
 import { replaceClaim } from '@/lib/article-content';
 import { ArticleEditor } from '@/components/ArticleEditor';
 import { SkeletonReview } from '@/components/SkeletonReview';
+import { AppHeader } from '@/components/AppHeader';
 
 interface ArticleRow {
   id: string;
@@ -121,14 +122,29 @@ export default function ArticleWorkspace({ article: initial }: Props) {
     }
   }, [article.id, applyDrafted, beginServerWrite, endServerWrite]);
 
+  const headerRight =
+    status === 'planned' ? (
+      <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
+        Reviewing plan
+      </span>
+    ) : status === 'drafting' ? (
+      <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
+        <span className="size-1.5 animate-pulse rounded-full bg-amber-500" />
+        Drafting…
+      </span>
+    ) : (
+      <span className="text-xs text-zinc-400">
+        {saveState === 'saving'
+          ? 'Saving…'
+          : saveState === 'saved'
+            ? 'Saved'
+            : ' '}
+      </span>
+    );
+
   return (
-    <div className="relative min-h-screen bg-zinc-50">
-      {/* Saving indicator */}
-      {saveState !== 'idle' && (
-        <div className="fixed top-4 right-4 z-50 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-500 shadow-sm">
-          {saveState === 'saving' ? 'Saving…' : 'Saved'}
-        </div>
-      )}
+    <div className="min-h-screen bg-zinc-50">
+      <AppHeader back wide right={headerRight} />
 
       {status === 'planned' && (
         <SkeletonReview
@@ -139,8 +155,8 @@ export default function ArticleWorkspace({ article: initial }: Props) {
 
       {status === 'drafting' && (
         <div>
-          <div className="mx-auto max-w-3xl px-4 py-4">
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="mx-auto max-w-6xl px-4 pt-6">
+            <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               <span>
                 Drafting sections… this can take a moment.
                 {draftRetryError && ' Something went wrong — try again.'}
@@ -148,7 +164,7 @@ export default function ArticleWorkspace({ article: initial }: Props) {
               <button
                 type="button"
                 onClick={retryDraft}
-                className="shrink-0 rounded border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
+                className="shrink-0 rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
               >
                 Retry drafting
               </button>

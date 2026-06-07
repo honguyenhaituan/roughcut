@@ -95,17 +95,17 @@ export default function UploadDropzone() {
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
-        className={`flex min-h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+        className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-white p-8 text-center transition-colors ${
           dragging
-            ? 'border-zinc-500 bg-zinc-100 dark:border-zinc-400 dark:bg-zinc-800'
-            : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-600 dark:hover:bg-zinc-800'
+            ? 'border-zinc-500 bg-zinc-100'
+            : 'border-zinc-300 hover:border-zinc-400 hover:bg-zinc-50'
         }`}
       >
-        <span className="text-2xl">📄</span>
-        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+        <span className="text-3xl">📄</span>
+        <p className="text-sm font-medium text-zinc-700">
           Drag files here, or click to browse
         </p>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="text-xs text-zinc-500">
           {ACCEPTED_EXTS.join(', ')} supported
         </p>
         <input
@@ -124,7 +124,7 @@ export default function UploadDropzone() {
           {files.map((f) => (
             <li
               key={f.name}
-              className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+              className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm text-zinc-700"
             >
               <span className="max-w-48 truncate">{f.name}</span>
               <button
@@ -134,7 +134,7 @@ export default function UploadDropzone() {
                   e.stopPropagation();
                   removeFile(f.name);
                 }}
-                className="ml-0.5 flex size-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                className="ml-0.5 flex size-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
               >
                 ×
               </button>
@@ -145,7 +145,7 @@ export default function UploadDropzone() {
 
       {/* Error */}
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </p>
       )}
@@ -155,9 +155,9 @@ export default function UploadDropzone() {
         type="button"
         disabled={files.length === 0 || loading}
         onClick={handleSubmit}
-        className="mt-1 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className="mt-1 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {loading ? 'Reading your notes…' : 'Plan'}
+        {loading ? 'Reading your notes…' : 'Plan my article'}
       </button>
     </div>
   );

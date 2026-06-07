@@ -117,9 +117,9 @@ export function ArticleEditor({
   };
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 bg-zinc-50 lg:flex-row lg:items-start">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 lg:flex-row lg:items-start">
       {/* Main column */}
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+      <main className="mx-auto w-full max-w-3xl flex-1 py-10">
         {/* Title */}
         <input
           type="text"
@@ -343,7 +343,7 @@ export function ArticleEditor({
       </main>
 
       {/* Right rail */}
-      <aside className="w-full shrink-0 space-y-4 px-4 py-10 lg:sticky lg:top-6 lg:w-80">
+      <aside className="w-full shrink-0 space-y-4 py-10 lg:sticky lg:top-20 lg:w-80">
         <SummaryBar
           content={content}
           onSave={onSave}

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getSessionUser } from '@/server/auth';
 import { articleService } from '@/server/services/article.service';
+import { AppHeader } from '@/components/AppHeader';
 import { logout } from './login/actions';
 
 type ArticleStatus = 'planned' | 'drafting' | 'ready';
@@ -35,13 +36,9 @@ export default async function LibraryPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      {/* Header */}
-      <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <span className="text-base font-semibold tracking-tight text-zinc-900">
-            Seek Sophie — Article Studio
-          </span>
-          <div className="flex items-center gap-4">
+      <AppHeader
+        right={
+          <>
             <span className="hidden text-sm text-zinc-500 sm:block">
               {user.email}
             </span>
@@ -53,20 +50,27 @@ export default async function LibraryPage() {
                 Log out
               </button>
             </form>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {/* Main content */}
       <main className="mx-auto max-w-5xl px-6 py-10">
         {/* Page title + New article action */}
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-            Your articles
-          </h1>
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              Your articles
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              {articles.length === 0
+                ? 'Turn rough travel notes into grounded articles.'
+                : `${articles.length} article${articles.length !== 1 ? 's' : ''}`}
+            </p>
+          </div>
           <Link
             href="/new"
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+            className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
           >
             New article
           </Link>
@@ -93,9 +97,9 @@ export default async function LibraryPage() {
               <Link
                 key={a.id}
                 href={`/articles/${a.id}`}
-                className="group rounded-xl border border-zinc-200 bg-white p-5 transition-shadow hover:shadow-md"
+                className="group flex min-h-32 flex-col justify-between rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-zinc-300 hover:shadow-md"
               >
-                <p className="mb-3 line-clamp-2 text-sm font-medium text-zinc-900 group-hover:text-zinc-700">
+                <p className="mb-4 line-clamp-3 text-sm leading-relaxed font-medium text-zinc-900">
                   {a.title || 'Untitled'}
                 </p>
                 <div className="flex items-center justify-between">
