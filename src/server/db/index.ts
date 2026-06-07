@@ -5,8 +5,27 @@ import { PrismaClient } from '@/generated/prisma/client';
 // Prisma 7's generated client has no built-in engine — it connects through a
 // driver adapter. PrismaPg wraps node-postgres (`pg`) and works with any
 // Postgres (local, Neon, Supabase, Vercel Postgres) via DATABASE_URL.
+// node-postgres now treats `sslmode=require` as verify-full, which rejects the
+// Supabase pooler's self-signed cert chain (and breaks under TLS interception).
+// Strip sslmode and disable strict verification — the connection stays
+// TLS-encrypted, just without chain validation.
+function buildConnectionString(): string | undefined {
+  const url = process.env.DATABASE_URL;
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.delete('sslmode');
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 function createPrismaClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = new PrismaPg({
+    connectionString: buildConnectionString(),
+    ssl: { rejectUnauthorized: false },
+  });
   return new PrismaClient({
     adapter,
     log:
