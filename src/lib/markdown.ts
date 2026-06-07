@@ -31,7 +31,16 @@ export function articleToMarkdown(article: {
 
   list('Best for', c.bestFor);
   list('Not for', c.notFor);
-  list('Ethics & safety', c.ethicsSafety);
+
+  if (c.ethicsSafety.length) {
+    out.push('## Ethics & safety', '');
+    for (const e of c.ethicsSafety)
+      out.push(
+        `- ${e.text}${e.needsExternalSource ? ' _(needs external source)_' : ''}`,
+      );
+    out.push('');
+  }
+
   list('Top tips', c.topTips);
 
   if (c.faq.length) {

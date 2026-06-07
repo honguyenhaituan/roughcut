@@ -30,14 +30,20 @@ export default function ArticleWorkspace({ article: initial }: Props) {
   const [media, setMedia] = useState<Media[]>(initial.media);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [draftRetryError, setDraftRetryError] = useState(false);
 
   const addMediaToState = (m: Media) => setMedia((prev) => [...prev, m]);
 
   const isFirstRender = useRef(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // While a server-side write is running (drafting / regenerating a section),
+  // autosave is suspended so an in-flight PATCH carrying stale section bodies
+  // can't race the draft write and clobber it (no version guard on the row).
+  const serverWriteInFlight = useRef(false);
 
   // Explicit save — also used by SummaryBar's Save button
   const doSave = useCallback(async () => {
+    if (serverWriteInFlight.current) return;
     setSaveState('saving');
     try {
       await fetch(`/api/articles/${article.id}`, {
@@ -51,6 +57,14 @@ export default function ArticleWorkspace({ article: initial }: Props) {
       setSaveState('idle');
     }
   }, [article.id, title, content]);
+
+  const beginServerWrite = useCallback(() => {
+    serverWriteInFlight.current = true;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, []);
+  const endServerWrite = useCallback(() => {
+    serverWriteInFlight.current = false;
+  }, []);
 
   // Debounced autosave whenever title or content changes (skip first render)
   useEffect(() => {
@@ -79,12 +93,33 @@ export default function ArticleWorkspace({ article: initial }: Props) {
     [],
   );
 
-  const handleDrafted = (updated: ArticleRow) => {
+  const applyDrafted = useCallback((updated: ArticleRow) => {
     setArticle(updated);
     setContent(updated.content as ArticleContent);
     setTitle(updated.title);
     setStatus(updated.status as 'planned' | 'drafting' | 'ready');
-  };
+  }, []);
+
+  // Recovery for #2: if a draft run was interrupted (e.g. serverless timeout)
+  // the row can be left in `drafting`; let the user re-trigger it.
+  const retryDraft = useCallback(async () => {
+    setDraftRetryError(false);
+    setStatus('drafting');
+    beginServerWrite();
+    try {
+      const res = await fetch(`/api/articles/${article.id}/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error('draft failed');
+      applyDrafted((await res.json()) as ArticleRow);
+    } catch {
+      setDraftRetryError(true);
+    } finally {
+      endServerWrite();
+    }
+  }, [article.id, applyDrafted, beginServerWrite, endServerWrite]);
 
   return (
     <div className="relative min-h-screen bg-zinc-50">
@@ -98,15 +133,25 @@ export default function ArticleWorkspace({ article: initial }: Props) {
       {status === 'planned' && (
         <SkeletonReview
           article={{ ...article, content, title }}
-          onDrafted={handleDrafted}
+          onDrafted={applyDrafted}
         />
       )}
 
       {status === 'drafting' && (
         <div>
           <div className="mx-auto max-w-3xl px-4 py-4">
-            <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Drafting sections… refresh to check progress.
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <span>
+                Drafting sections… this can take a moment.
+                {draftRetryError && ' Something went wrong — try again.'}
+              </span>
+              <button
+                type="button"
+                onClick={retryDraft}
+                className="shrink-0 rounded border border-amber-300 bg-white px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100"
+              >
+                Retry drafting
+              </button>
             </div>
           </div>
           <ArticleEditor
@@ -121,6 +166,8 @@ export default function ArticleWorkspace({ article: initial }: Props) {
             patchContent={patchContent}
             onSave={doSave}
             onMediaUploaded={addMediaToState}
+            onServerWriteStart={beginServerWrite}
+            onServerWriteEnd={endServerWrite}
           />
         </div>
       )}
@@ -138,6 +185,8 @@ export default function ArticleWorkspace({ article: initial }: Props) {
           patchContent={patchContent}
           onSave={doSave}
           onMediaUploaded={addMediaToState}
+          onServerWriteStart={beginServerWrite}
+          onServerWriteEnd={endServerWrite}
         />
       )}
     </div>

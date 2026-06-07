@@ -133,41 +133,49 @@ export const articleService = {
     const article = await articleRepository.findByIdForUser(id, userId);
     if (!article) throw new Error('NOT_FOUND');
     await articleRepository.update(id, userId, { status: 'drafting' });
-    const content = article.content as ArticleContent;
-    const segments = article.sourceSegments as Segment[];
-    const targets = content.sections.filter(
-      (s) => !sectionIds || sectionIds.includes(s.id),
-    );
-    const outline = content.sections.map((s) => s.heading);
-    const results = await pooled(targets, POOL, async (s) => {
-      try {
-        const body = await draftSection({
-          heading: s.heading,
-          intent: s.intent,
-          hook: content.hookSubtitle.text,
-          outline,
-          segments,
-          assignedIds: s.sourceSegmentIds,
-        });
-        return { id: s.id, body, draftError: false };
-      } catch {
-        return { id: s.id, body: [], draftError: true };
-      }
-    });
-    const byId = new Map(results.map((r) => [r.id, r]));
-    content.sections = content.sections.map((s) =>
-      byId.has(s.id)
-        ? {
-            ...s,
-            body: byId.get(s.id)!.body,
-            draftError: byId.get(s.id)!.draftError,
-          }
-        : s,
-    );
-    await articleRepository.update(id, userId, {
-      content: content as unknown as Prisma.InputJsonValue,
-      status: 'ready',
-    });
-    return articleRepository.findByIdForUser(id, userId);
+    // Per-section errors are absorbed below; this guards the surrounding work so
+    // a soft failure can't strand the row in `drafting` (a hard timeout can —
+    // the client offers a "retry drafting" affordance for that case).
+    try {
+      const content = article.content as ArticleContent;
+      const segments = article.sourceSegments as Segment[];
+      const targets = content.sections.filter(
+        (s) => !sectionIds || sectionIds.includes(s.id),
+      );
+      const outline = content.sections.map((s) => s.heading);
+      const results = await pooled(targets, POOL, async (s) => {
+        try {
+          const body = await draftSection({
+            heading: s.heading,
+            intent: s.intent,
+            hook: content.hookSubtitle.text,
+            outline,
+            segments,
+            assignedIds: s.sourceSegmentIds,
+          });
+          return { id: s.id, body, draftError: false };
+        } catch {
+          return { id: s.id, body: [], draftError: true };
+        }
+      });
+      const byId = new Map(results.map((r) => [r.id, r]));
+      content.sections = content.sections.map((s) =>
+        byId.has(s.id)
+          ? {
+              ...s,
+              body: byId.get(s.id)!.body,
+              draftError: byId.get(s.id)!.draftError,
+            }
+          : s,
+      );
+      await articleRepository.update(id, userId, {
+        content: content as unknown as Prisma.InputJsonValue,
+        status: 'ready',
+      });
+      return articleRepository.findByIdForUser(id, userId);
+    } catch (e) {
+      await articleRepository.update(id, userId, { status: 'ready' });
+      throw e;
+    }
   },
 };

@@ -5,7 +5,7 @@ const PUBLIC = ['/login'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (PUBLIC.some((p) => pathname.startsWith(p))) return NextResponse.next();
+  if (PUBLIC.includes(pathname)) return NextResponse.next();
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (token && (await verifySession(token))) return NextResponse.next();
   if (pathname.startsWith('/api/'))

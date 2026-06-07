@@ -52,8 +52,6 @@ pnpm dev               # http://localhost:3000
 | `AUTH_SECRET`                                            | session-signing secret (`openssl rand -base64 32`)                    |
 | `VERCEL_OIDC_TOKEN` + `BLOB_STORE_ID`                    | Vercel Blob auth (auto-injected on Vercel; `vercel env pull` locally) |
 
-> Note: `src/server/db/index.ts` strips `sslmode` from the connection string and relaxes TLS chain verification — the Supabase pooler presents a cert chain Node's `pg` driver rejects under `sslmode=require`.
-
 ### Tests
 
 ```bash
@@ -75,3 +73,8 @@ Sample fixtures used during development live in `samples/` (a Komodo pocket guid
 ## Scope notes
 
 This handles the unhappy path on purpose: bad/empty/unsupported uploads, partial file failures, LLM JSON/timeout failures (with retry, preserving the upload), partial draft failures (per-section retry), oversized inputs (capped + flagged), and non-travel notes (detected, never fabricated). Consciously cut for the time box: multi-experience splitting, conflict-resolution UI, article-type selection, version history, library search, email verification / rate-limiting, a semantic AI-verifier pass, and OCR/audio/PDF ingestion.
+
+## Known limitations / conscious tradeoffs
+
+- **No optimistic-concurrency on the article row.** Autosave is suspended while a section is (re)generating so a stale PATCH can't clobber a fresh draft, and an interrupted draft can be re-triggered from the UI. But image uploads use a read-modify-write on the `media` array — two uploads fired at the exact same moment could drop one. A real fix is a row-level append/transaction or a version column; out of scope for the time box.
+- **Single image-storage region, public Blob URLs.** Fine for this tool; a production setup would scope access and add a CDN.

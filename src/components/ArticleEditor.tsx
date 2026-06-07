@@ -33,6 +33,8 @@ interface Props {
   patchContent: (next: ArticleContent) => void;
   onSave: () => void;
   onMediaUploaded: (m: Media) => void;
+  onServerWriteStart?: () => void;
+  onServerWriteEnd?: () => void;
 }
 
 interface SectionDraftState {
@@ -52,6 +54,8 @@ export function ArticleEditor({
   patchContent,
   onSave,
   onMediaUploaded,
+  onServerWriteStart,
+  onServerWriteEnd,
 }: Props) {
   const [sectionStates, setSectionStates] = useState<
     Record<string, SectionDraftState>
@@ -66,6 +70,8 @@ export function ArticleEditor({
       ...prev,
       [sectionId]: { loading: true, error: false },
     }));
+    // Suspend autosave so a stale PATCH can't clobber the regenerated body.
+    onServerWriteStart?.();
     try {
       const res = await fetch(`/api/articles/${article.id}/draft`, {
         method: 'POST',
@@ -96,6 +102,8 @@ export function ArticleEditor({
         ...prev,
         [sectionId]: { loading: false, error: true },
       }));
+    } finally {
+      onServerWriteEnd?.();
     }
   };
 
