@@ -18,6 +18,21 @@ export function splitSegments(
     .map((t, i) => ({ id: `S${offset + i + 1}`, text: t, fileName }));
 }
 
+export type Atom = { text: string; fileName: string };
+
+// Finest verbatim unit for AI re-segmentation: each line is a hard boundary,
+// and within a line we split on sentence terminators. The AI later groups these
+// atoms back into semantically-coherent segments — going below the paragraph
+// level is what lets it SPLIT a long mixed-idea paragraph, not just merge.
+export function atomize(text: string, fileName: string): Atom[] {
+  return text
+    .split(/\n+/)
+    .flatMap((line) => line.match(/[^.!?…]+[.!?…]*/g) ?? [])
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((t) => ({ text: t, fileName }));
+}
+
 type InputFile = { name: string; buffer: Buffer; mimeType: string };
 type ExtractedImage = {
   buffer: Buffer;
@@ -57,6 +72,7 @@ async function readFile(
 
 export async function parseFiles(files: InputFile[]) {
   const segments: Segment[] = [];
+  const sources: { fileName: string; text: string }[] = [];
   const images: ExtractedImage[] = [];
   const skipped: { name: string; reason: string }[] = [];
   for (const file of files) {
@@ -78,6 +94,7 @@ export async function parseFiles(files: InputFile[]) {
       continue;
     }
     segments.push(...splitSegments(parsed.text, file.name, segments.length));
+    sources.push({ fileName: file.name, text: parsed.text });
     images.push(...parsed.images);
   }
   let total = 0,
@@ -91,5 +108,5 @@ export async function parseFiles(files: InputFile[]) {
     total += s.text.length;
     capped.push(s);
   }
-  return { segments: capped, images, truncated, skipped };
+  return { segments: capped, sources, images, truncated, skipped };
 }
