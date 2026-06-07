@@ -1,0 +1,22 @@
+// Prisma schema. Docs: https://pris.ly/d/prisma-schema
+// The DATABASE_URL is read from .env via prisma.config.ts.
+// After editing models: `pnpm db:generate` (types) and `pnpm db:migrate` (apply).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A sample resource demonstrating the layered backend (server/) structure.
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

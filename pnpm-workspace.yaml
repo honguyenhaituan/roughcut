@@ -1,0 +1,20 @@
+# Skip the dependency-freshness check before each `pnpm <script>` run.
+verifyDepsBeforeRun: false
+
+# Dependency build scripts (pnpm 10+ blocks these by default). None are needed
+# at runtime here: Prisma 7 connects via a driver adapter (no Rust engine), and
+# sharp / unrs-resolver / react-grab work without their native postinstall.
+ignoredBuiltDependencies:
+  - '@prisma/engines'
+  - prisma
+  - react-grab
+  - sharp
+  - unrs-resolver
+
+# Sandbox build-script approval (managed by the Claude Code harness).
+allowBuilds:
+  '@prisma/engines': false
+  prisma: false
+  react-grab: true
+  sharp: true
+  unrs-resolver: true
