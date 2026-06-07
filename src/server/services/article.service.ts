@@ -8,6 +8,7 @@ import {
   contentSchema,
   type ArticleContent,
   type Segment,
+  type Media,
 } from '@/server/validations/article.schema';
 
 const POOL = 4;
@@ -111,6 +112,21 @@ export const articleService = {
       ...(patch.status && { status: patch.status }),
     });
     return articleRepository.findByIdForUser(id, userId);
+  },
+
+  async addMedia(
+    id: string,
+    userId: string,
+    file: { buffer: Buffer; mimeType: string; name: string },
+  ) {
+    const article = await articleRepository.findByIdForUser(id, userId);
+    if (!article) throw new Error('NOT_FOUND');
+    const item = await mediaService.uploadOne(file);
+    const media = [...(article.media as Media[]), item];
+    await articleRepository.update(id, userId, {
+      media: media as unknown as Prisma.InputJsonValue,
+    });
+    return item;
   },
 
   async draftSections(id: string, userId: string, sectionIds?: string[]) {
