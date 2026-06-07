@@ -1,64 +1,113 @@
-import Image from 'next/image';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { getSessionUser } from '@/server/auth';
+import { articleService } from '@/server/services/article.service';
+import { logout } from './login/actions';
 
-export default function Home() {
+type ArticleStatus = 'planned' | 'drafting' | 'ready';
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<ArticleStatus, string> = {
+    planned: 'bg-zinc-100 text-zinc-600',
+    drafting: 'bg-amber-100 text-amber-700',
+    ready: 'bg-green-100 text-green-700',
+  };
+  const labels: Record<ArticleStatus, string> = {
+    planned: 'Planned',
+    drafting: 'Drafting',
+    ready: 'Ready',
+  };
+  const s = status as ArticleStatus;
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between bg-white px-16 py-32 sm:items-start dark:bg-black">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl leading-10 font-semibold tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <span
+      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${styles[s] ?? 'bg-zinc-100 text-zinc-600'}`}
+    >
+      {labels[s] ?? status}
+    </span>
+  );
+}
+
+export default async function LibraryPage() {
+  const user = await getSessionUser();
+  if (!user) redirect('/login');
+
+  const articles = await articleService.list(user.userId);
+
+  return (
+    <div className="min-h-screen bg-zinc-50">
+      {/* Header */}
+      <header className="border-b border-zinc-200 bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+          <span className="text-base font-semibold tracking-tight text-zinc-900">
+            Seek Sophie — Article Studio
+          </span>
+          <div className="flex items-center gap-4">
+            <span className="hidden text-sm text-zinc-500 sm:block">
+              {user.email}
+            </span>
+            <form action={logout}>
+              <button
+                type="submit"
+                className="rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+              >
+                Log out
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="mx-auto max-w-5xl px-6 py-10">
+        {/* Page title + New article action */}
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            Your articles
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{' '}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{' '}
-            or the{' '}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{' '}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="bg-foreground text-background flex h-12 w-full items-center justify-center gap-2 rounded-full px-5 transition-colors hover:bg-[#383838] md:w-[158px] dark:hover:bg-[#ccc]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/new"
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] md:w-[158px] dark:border-white/[.145] dark:hover:bg-[#1a1a1a]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            New article
+          </Link>
         </div>
+
+        {articles.length === 0 ? (
+          /* Empty state */
+          <div className="rounded-xl border border-zinc-200 bg-white px-8 py-16 text-center">
+            <p className="text-lg font-medium text-zinc-800">No articles yet</p>
+            <p className="mt-2 text-sm text-zinc-500">
+              Upload your rough notes to draft your first article.
+            </p>
+            <Link
+              href="/new"
+              className="mt-6 inline-block rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+            >
+              New article
+            </Link>
+          </div>
+        ) : (
+          /* Article grid */
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {articles.map((a) => (
+              <Link
+                key={a.id}
+                href={`/articles/${a.id}`}
+                className="group rounded-xl border border-zinc-200 bg-white p-5 transition-shadow hover:shadow-md"
+              >
+                <p className="mb-3 line-clamp-2 text-sm font-medium text-zinc-900 group-hover:text-zinc-700">
+                  {a.title || 'Untitled'}
+                </p>
+                <div className="flex items-center justify-between">
+                  <StatusBadge status={a.status} />
+                  <span className="text-xs text-zinc-400">
+                    {new Date(a.updatedAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
