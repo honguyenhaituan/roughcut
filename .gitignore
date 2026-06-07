@@ -49,3 +49,5 @@ next-env.d.ts
 
 # local planning docs (not pushed)
 docs/superpowers/
+
+.claude/launch.json
