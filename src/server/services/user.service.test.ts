@@ -12,15 +12,13 @@ const mockedRepo = vi.mocked(userRepository);
 describe('userService.register', () => {
   it('hashes the password and creates the user', async () => {
     mockedRepo.findByEmail.mockResolvedValue(null);
-    mockedRepo.create.mockImplementation((email: string, hash: string) =>
-      Promise.resolve({
-        id: 'u1',
-        email,
-        passwordHash: hash,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }),
-    );
+    mockedRepo.create.mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.com',
+      passwordHash: 'hashed',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     const user = await userService.register('a@b.com', 'password123');
     const [, hash] = mockedRepo.create.mock.calls[0];
     expect(hash).not.toBe('password123');
