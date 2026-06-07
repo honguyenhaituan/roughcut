@@ -6,6 +6,7 @@ import { replaceClaim } from '@/lib/article-content';
 import { ArticleEditor } from '@/components/ArticleEditor';
 import { SkeletonReview } from '@/components/SkeletonReview';
 import { AppHeader } from '@/components/AppHeader';
+import { PublishControl } from '@/components/PublishControl';
 
 interface ArticleRow {
   id: string;
@@ -15,6 +16,8 @@ interface ArticleRow {
   content: ArticleContent;
   sourceSegments: Segment[];
   media: Media[];
+  published: boolean;
+  publicId: string | null;
 }
 
 interface Props {
@@ -94,12 +97,17 @@ export default function ArticleWorkspace({ article: initial }: Props) {
     [],
   );
 
-  const applyDrafted = useCallback((updated: ArticleRow) => {
-    setArticle(updated);
-    setContent(updated.content as ArticleContent);
-    setTitle(updated.title);
-    setStatus(updated.status as 'planned' | 'drafting' | 'ready');
-  }, []);
+  // The draft/regenerate response doesn't carry the publish fields, and
+  // publishing state is unchanged by drafting — preserve it via a merge.
+  const applyDrafted = useCallback(
+    (updated: Omit<ArticleRow, 'published' | 'publicId'>) => {
+      setArticle((prev) => ({ ...prev, ...updated }));
+      setContent(updated.content as ArticleContent);
+      setTitle(updated.title);
+      setStatus(updated.status as 'planned' | 'drafting' | 'ready');
+    },
+    [],
+  );
 
   // Recovery for #2: if a draft run was interrupted (e.g. serverless timeout)
   // the row can be left in `drafting`; let the user re-trigger it.
@@ -133,13 +141,20 @@ export default function ArticleWorkspace({ article: initial }: Props) {
         Drafting…
       </span>
     ) : (
-      <span className="text-xs text-zinc-400">
-        {saveState === 'saving'
-          ? 'Saving…'
-          : saveState === 'saved'
-            ? 'Saved'
-            : ' '}
-      </span>
+      <>
+        <span className="text-xs text-zinc-400">
+          {saveState === 'saving'
+            ? 'Saving…'
+            : saveState === 'saved'
+              ? 'Saved'
+              : ' '}
+        </span>
+        <PublishControl
+          articleId={initial.id}
+          published={initial.published}
+          publicId={initial.publicId}
+        />
+      </>
     );
 
   return (
