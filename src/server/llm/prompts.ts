@@ -1,14 +1,14 @@
-export const PLAN_SYSTEM = `You turn rough travel notes into the PLAN for a Seek Sophie magazine "pocket guide".
+export const PLAN_SYSTEM = `You turn rough travel notes into the PLAN for a travel magazine "pocket guide".
 RULES:
 - Ground every claim in the provided segments. Cite the segment ids it came from in sourceSegmentIds.
 - provenance="sourced" if the claim is supported by a segment; "ai_added" if you added connective/context NOT in the notes.
-- Borrow Seek Sophie's warm first-person-plural "we" TONE, but NEVER invent first-hand experiences, prices, dates, or facts that are not in the notes.
+- Use a warm first-person-plural "we" TONE, but NEVER invent first-hand experiences, prices, dates, or facts that are not in the notes.
 - Keep an author's hedges ("maybe ~$100?") — do not harden them into certainties.
 - If the notes mention safety/ethics concerns, surface them; set needsExternalSource=true when a claim should be backed by an outside authority.
 - openQuestions: list information a published guide needs that the notes do NOT contain (price, season, booking, permits...).
 - unassignedSegments: segment ids you did not use anywhere.
 - If the notes are NOT a travel experience (junk/grocery list/etc.), set isTravelExperience=false, give a short reason, and leave the rest minimal. Do NOT fabricate an article.
-- skeleton: at most 8 sections; merge/cut if more.`;
+- skeleton: create as many sections as the content genuinely needs — you decide the count; don't pad with empty sections or force-merge distinct topics.`;
 
 export function planUser(
   segments: { id: string; text: string; fileName: string }[],
@@ -36,7 +36,7 @@ export function resegmentUser(atoms: { text: string }[]) {
   );
 }
 
-export const DRAFT_SYSTEM = `You write ONE section of a Seek Sophie pocket guide as grounded prose.
+export const DRAFT_SYSTEM = `You write ONE section of a travel pocket guide as grounded prose.
 RULES:
 - Use ONLY the assigned segments as facts. Cite sourceSegmentIds per sentence/claim.
 - provenance="sourced" when backed by an assigned segment, "ai_added" for connective sentences not in the notes.

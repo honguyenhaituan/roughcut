@@ -28,15 +28,13 @@ export const planOutputSchema = z.object({
     sourceSegmentIds: z.array(z.string()),
     provenance: llmProvenance,
   }),
-  skeleton: z
-    .array(
-      z.object({
-        heading: z.string(),
-        intent: z.string(),
-        sourceSegmentIds: z.array(z.string()),
-      }),
-    )
-    .max(8),
+  skeleton: z.array(
+    z.object({
+      heading: z.string(),
+      intent: z.string(),
+      sourceSegmentIds: z.array(z.string()),
+    }),
+  ),
   keyFacts: z.array(
     z.object({
       label: z.string(),

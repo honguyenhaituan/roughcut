@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Article Studio — Seek Sophie',
+  title: 'Article Studio',
   description:
     'Turn rough travel notes into grounded, source-attributed magazine articles.',
   manifest: '/manifest.webmanifest',

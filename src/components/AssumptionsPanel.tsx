@@ -3,7 +3,7 @@
 const ASSUMPTIONS = [
   'Output stays grounded to your notes (AI additions flagged amber)',
   'One experience per article',
-  'Tone borrowed from Seek Sophie; facts only from your notes',
+  'Warm magazine tone; facts only from your notes',
 ];
 
 export function AssumptionsPanel() {
