@@ -18,7 +18,13 @@ export const articleRepository = {
     prisma.article.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
-      select: { id: true, title: true, status: true, updatedAt: true },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        updatedAt: true,
+        published: true,
+      },
     }),
 
   update: (id: string, userId: string, data: Prisma.ArticleUpdateInput) =>
