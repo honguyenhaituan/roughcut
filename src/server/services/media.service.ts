@@ -1,7 +1,7 @@
 import 'server-only';
 import { put } from '@vercel/blob';
-import { env } from '@/helpers/env';
 import type { Media } from '@/server/validations/article.schema';
+// Auth resolves automatically from VERCEL_OIDC_TOKEN + BLOB_STORE_ID — no explicit token passed.
 
 export const mediaService = {
   async uploadExtracted(
@@ -14,7 +14,6 @@ export const mediaService = {
         const blob = await put(`articles/${id}.${ext}`, img.buffer, {
           access: 'public',
           contentType: img.mimeType,
-          token: env.blobToken(),
         });
         return {
           id,
@@ -36,7 +35,6 @@ export const mediaService = {
     const blob = await put(`articles/${id}`, file.buffer, {
       access: 'public',
       contentType: file.mimeType,
-      token: env.blobToken(),
     });
     return {
       id,

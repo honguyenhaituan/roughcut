@@ -27,8 +27,10 @@ function required(name: string): string {
 }
 
 export const env = {
-  openaiApiKey: () => required('OPENAI_API_KEY'),
-  openaiModel: () => process.env.OPENAI_MODEL ?? 'gpt-4o',
+  // LiteLLM is an OpenAI-compatible gateway; the AI SDK's openai provider talks to it via baseURL.
+  litellmBaseUrl: () => required('LITELLM_BASE_URL'),
+  litellmApiKey: () => required('LITELLM_API_KEY'),
+  litellmModel: () => required('LITELLM_MODEL'),
   authSecret: () => required('AUTH_SECRET'),
-  blobToken: () => required('BLOB_READ_WRITE_TOKEN'),
+  // Vercel Blob auth resolves automatically from VERCEL_OIDC_TOKEN + BLOB_STORE_ID (no RW token needed).
 };
