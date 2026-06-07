@@ -14,7 +14,7 @@ export type Claim = z.infer<typeof claimSchema>;
 
 export const planOutputSchema = z.object({
   isTravelExperience: z.boolean(),
-  reason: z.string().optional(),
+  reason: z.string().nullable(),
   articleType: z.string(),
   purpose: z.string(),
   title: z.string(),
