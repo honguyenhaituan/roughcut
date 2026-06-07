@@ -8,6 +8,8 @@ import { SourcePanel } from './SourcePanel';
 import { OpenQuestionsPanel } from './OpenQuestionsPanel';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import ExportMarkdownButton from './ExportMarkdownButton';
+import { ImageSlot } from './ImageSlot';
+import { MediaTray } from './MediaTray';
 
 interface ArticleRow {
   id: string;
@@ -23,12 +25,14 @@ interface Props {
   article: ArticleRow;
   title: string;
   content: ArticleContent;
+  media: Media[];
   selectedClaim: Claim | null;
   onTitleChange: (t: string) => void;
   onClaimChange: (c: Claim) => void;
   onSelect: (c: Claim) => void;
   patchContent: (next: ArticleContent) => void;
   onSave: () => void;
+  onMediaUploaded: (m: Media) => void;
 }
 
 interface SectionDraftState {
@@ -40,12 +44,14 @@ export function ArticleEditor({
   article,
   title,
   content,
+  media,
   selectedClaim,
   onTitleChange,
   onClaimChange,
   onSelect,
   patchContent,
   onSave,
+  onMediaUploaded,
 }: Props) {
   const [sectionStates, setSectionStates] = useState<
     Record<string, SectionDraftState>
@@ -111,8 +117,18 @@ export function ArticleEditor({
           type="text"
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
-          className="mb-6 w-full border-0 bg-transparent text-2xl font-semibold text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-0"
+          className="mb-4 w-full border-0 bg-transparent text-2xl font-semibold text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-0"
           placeholder="Article title"
+        />
+
+        {/* Hero image */}
+        <ImageSlot
+          label="Hero image"
+          imageId={content.heroImageId}
+          media={media}
+          articleId={article.id}
+          onChange={(id) => patchContent({ ...content, heroImageId: id })}
+          onUploaded={onMediaUploaded}
         />
 
         {/* Hook */}
@@ -176,7 +192,7 @@ export function ArticleEditor({
                   </button>
                 </p>
               )}
-              <p className="text-base leading-relaxed">
+              <p className="mb-4 text-base leading-relaxed">
                 {section.body.map((c, i) => (
                   <span key={c.id}>
                     {i > 0 && ' '}
@@ -187,6 +203,21 @@ export function ArticleEditor({
                   <span className="text-zinc-400 italic">Drafting…</span>
                 )}
               </p>
+              <ImageSlot
+                label="Section image"
+                imageId={section.imageId}
+                media={media}
+                articleId={article.id}
+                onChange={(id) =>
+                  patchContent({
+                    ...content,
+                    sections: content.sections.map((s) =>
+                      s.id === section.id ? { ...s, imageId: id } : s,
+                    ),
+                  })
+                }
+                onUploaded={onMediaUploaded}
+              />
             </section>
           );
         })}
@@ -313,6 +344,16 @@ export function ArticleEditor({
         <SourcePanel claim={selectedClaim} segments={article.sourceSegments} />
         <OpenQuestionsPanel questions={content.openQuestions} />
         <AssumptionsPanel />
+        <div>
+          <p className="mb-2 text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+            Images
+          </p>
+          <MediaTray
+            articleId={article.id}
+            media={media}
+            onUploaded={onMediaUploaded}
+          />
+        </div>
       </aside>
     </div>
   );

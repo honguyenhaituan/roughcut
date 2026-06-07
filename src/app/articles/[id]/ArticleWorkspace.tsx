@@ -27,8 +27,11 @@ export default function ArticleWorkspace({ article: initial }: Props) {
   const [title, setTitle] = useState(initial.title);
   const [content, setContent] = useState<ArticleContent>(initial.content);
   const [status, setStatus] = useState(initial.status);
+  const [media, setMedia] = useState<Media[]>(initial.media);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
+
+  const addMediaToState = (m: Media) => setMedia((prev) => [...prev, m]);
 
   const isFirstRender = useRef(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,12 +113,14 @@ export default function ArticleWorkspace({ article: initial }: Props) {
             article={article}
             title={title}
             content={content}
+            media={media}
             selectedClaim={selectedClaim}
             onTitleChange={setTitle}
             onClaimChange={onClaimChange}
             onSelect={setSelectedClaim}
             patchContent={patchContent}
             onSave={doSave}
+            onMediaUploaded={addMediaToState}
           />
         </div>
       )}
@@ -125,12 +130,14 @@ export default function ArticleWorkspace({ article: initial }: Props) {
           article={article}
           title={title}
           content={content}
+          media={media}
           selectedClaim={selectedClaim}
           onTitleChange={setTitle}
           onClaimChange={onClaimChange}
           onSelect={setSelectedClaim}
           patchContent={patchContent}
           onSave={doSave}
+          onMediaUploaded={addMediaToState}
         />
       )}
     </div>
